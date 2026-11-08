@@ -1,0 +1,48 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>UMS</title>
+<style>body{font-family:sans-serif;max-width:700px;margin:2rem auto}td,th{padding:4px 8px;border-bottom:1px solid #ddd}input{margin:2px}</style></head>
+<body>
+<h2>University Management System</h2>
+<p><span id="me"></span> | <a href="/logout">Logout</a></p>
+<div id="tabs"></div>
+<h3 id="title"></h3>
+<form id="f">
+  <input name="username" placeholder="username" required>
+  <input name="password" placeholder="password" type="password">
+  <input name="name" placeholder="full name">
+  <input type="hidden" name="id">
+  <button>Save</button>
+</form>
+<table id="t"></table>
+<script>
+let type, role;
+const allowed = {ADMIN:['admins','teachers','students'], TEACHER:['teachers'], STUDENT:['students']};
+async function api(method, url, body){
+  const r = await fetch(url,{method,headers:{'Content-Type':'application/json',Accept:'application/json'},body:body&&JSON.stringify(body)});
+  if(!r.ok){alert(r.status+' '+(await r.text()));return null}
+  return r.status==204?true:r.json();
+}
+async function load(){
+  const list = await api('GET','/api/'+type); if(!list) return;
+  title.textContent = type;
+  t.innerHTML = '<tr><th>ID</th><th>Username</th><th>Name</th><th></th></tr>' + list.map(u =>
+    `<tr><td>${u.id}</td><td>${u.username}</td><td>${u.name||''}</td><td>
+    <a href="#" onclick='edit(${JSON.stringify(u)});return false'>edit</a>
+    <a href="#" onclick="del(${u.id});return false">delete</a></td></tr>`).join('');
+}
+function edit(u){ f.id.value=u.id; f.username.value=u.username; f.name.value=u.name||''; f.password.value=''; }
+async function del(id){ if(confirm('Delete?')){ await api('DELETE','/api/'+type+'/'+id); load(); } }
+f.onsubmit = async e => {
+  e.preventDefault();
+  const b = {username:f.username.value, password:f.password.value||null, name:f.name.value};
+  const id = f.id.value;
+  if(await api(id?'PUT':'POST','/api/'+type+(id?'/'+id:''), b)){ f.reset(); load(); }
+};
+function pick(x){ type=x; load(); }
+(async()=>{
+  const me = await api('GET','/api/me'); role = me.role;
+  document.getElementById('me').textContent = me.username+' ('+role+')';
+  tabs.innerHTML = allowed[role].map(x=>`<button onclick="pick('${x}')">${x}</button>`).join(' ');
+  pick(allowed[role][0]);
+})();
+</script></body></html>

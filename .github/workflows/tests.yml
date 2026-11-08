@@ -1,0 +1,43 @@
+name: UMS - 4 Pass, 2 Intentional Failures
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run 3 unit + 3 integration tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run all 6 tests (including intentional failures)
+        # The flag is scoped to THIS demo command only. It prevents Maven from
+        # stopping after the failing unit test, so all integration tests run.
+        # A later step checks the XML reports and correctly fails the job.
+        run: mvn --batch-mode --no-transfer-progress -Dmaven.test.failure.ignore=true clean verify
+
+      - name: Print and publish all 6 individual results
+        if: always()
+        run: python3 scripts/report_tests.py
+
+      - name: Upload Maven test results (even if checks fail)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ums-test-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          if-no-files-found: warn

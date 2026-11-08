@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ums
+      POSTGRES_USER: ums
+      POSTGRES_PASSWORD: ums
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ums -d ums"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/ums
+      DB_USER: ums
+      DB_PASS: ums
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dbdata:
